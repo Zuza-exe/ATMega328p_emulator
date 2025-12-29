@@ -1,0 +1,29 @@
+# ===== CMake build =====
+build/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+
+# ===== Compilation artifacts =====
+*.o
+*.obj
+*.a
+*.so
+*.exe
+emulator
+
+# ===== AVR toolchain =====
+*.elf
+*.eep
+
+# ===== IDE =====
+.vscode/
+
+# ===== OS junk =====
+*.tmp
+*.log
+*.swp
+*.bak
+Thumbs.db
+.DS_Store
