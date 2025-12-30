@@ -16,6 +16,8 @@ emulator
 # ===== AVR toolchain =====
 *.elf
 *.eep
+tests/*.bin
+tests/*.hex
 
 # ===== IDE =====
 .vscode/

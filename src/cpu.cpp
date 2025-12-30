@@ -39,10 +39,26 @@ void CPU::decode_and_execute(uint16_t opcode)
 {
     //decoding instruction
 
+    //nop - 0000 0000 0000 0000
+    if((opcode&0xFFFF) == 0x0000)
+    {
+        return;
+    }
+
     //ldi - 1110 kkkk(old bits) rrrr(registers 16-31) kkkk(young bits)
     if((opcode&0xF000) == 0xE000)
     {
-        r[(opcode&0x00F0)>>4 | 16] = (opcode&0x0F00)>>4 | (opcode&0x000F);  
+        uint8_t id = 16 + ((opcode >> 4) & 0x0F);
+        uint8_t k = ((opcode >> 4) & 0xF0) | (opcode & 0x0F);
+        r[id] = k;  
+    }
+
+    //mov - 0010 11rd dddd rrrr - copy register r to d (both 0-31)
+    if((opcode&0xFC00) == 0x2C00)
+    {
+        uint8_t r_id = ((opcode>>5)&0x0010) | (opcode&0x000F);
+        uint8_t d_id = ((opcode>>4) & 0x001F);
+        r[d_id] = r[r_id];
     }
 }
 

@@ -19,6 +19,7 @@ int main()
 
     cpu.print_status();
     cpu.step();
+    cpu.step();
     cpu.print_status();
 
     return 0;
