@@ -17,5 +17,9 @@ int main()
 
     mem.print_flash();
 
+    cpu.print_status();
+    cpu.step();
+    cpu.print_status();
+
     return 0;
 }

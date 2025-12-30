@@ -100,3 +100,8 @@ void Memory::write_io(uint8_t addr, uint8_t value)
 
 
 //metody odczytu z pamięci
+
+uint16_t Memory::fetch_instruction(uint16_t pc)
+{
+    return flash[pc];
+}

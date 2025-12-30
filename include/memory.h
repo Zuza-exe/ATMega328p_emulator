@@ -12,6 +12,7 @@ public:
     void print_flash(size_t words = 16);
     void write_io(uint8_t addr, uint8_t value);
     //metody odczytu z pamięci
+    uint16_t fetch_instruction(uint16_t pc);
 
 private:
     uint16_t flash[16 * 1024];
