@@ -8,7 +8,8 @@ using namespace std;
 
 int main()
 {
-    string bin_filename = "../tests/test_ldi.bin";
+    //string bin_filename = "../tests/test_ldi.bin";
+    string bin_filename = "../tests/add_flag_tests.bin";
 
     Memory mem;
     CPU cpu(mem);
@@ -17,9 +18,10 @@ int main()
 
     mem.print_flash();
 
-    cpu.print_status();
-    cpu.step();
-    cpu.step();
+    for(int i = 0; i < 10; i++)
+    {
+        cpu.step();
+    }
     cpu.print_status();
 
     return 0;

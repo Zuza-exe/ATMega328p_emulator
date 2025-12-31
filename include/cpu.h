@@ -20,6 +20,21 @@ private:
     uint16_t pc;	//licznik programu
     uint16_t sp;	//wskaźnik stosu
 
+    enum Flag {
+        C = 0,
+        Z = 1,
+        N = 2,
+        V = 3,
+        S = 4,
+        H = 5,
+        T = 6,
+        I = 7
+    };
+
+    void set_flag(Flag f, bool v);
+
+    bool get_flag(Flag f) const;
+
     //metody pomocnicze do step() - np. dekodowanie instrukcji, wykonanie instrukcji procesora
     void decode_and_execute(uint16_t opcode);
 
