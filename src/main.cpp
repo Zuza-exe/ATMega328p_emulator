@@ -1,6 +1,7 @@
 #include "../include/cpu.h"
 #include "../include/io_regs.h"
 #include "../include/memory.h"
+#include "../include/debug.h"
 #include <iostream>
 #include <string>
 
@@ -14,6 +15,8 @@ int main()
     Memory mem;
     CPU cpu(mem);
 
+    DBG(cout<<"Debbuging mode on\n"<<endl;)
+
     mem.load_bin_to_flash(bin_filename);
 
     mem.print_flash();
@@ -22,7 +25,6 @@ int main()
     {
         cpu.step();
     }
-    cpu.print_status();
 
     return 0;
 }

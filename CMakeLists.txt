@@ -21,6 +21,9 @@ target_include_directories(emulator
     PRIVATE include
 )
 
+#debugging mode on
+add_compile_definitions(DEBUG)
+
 # ostrzeżenia (bardzo polecam)
 target_compile_options(emulator
     PRIVATE -Wall -Wextra -Wpedantic

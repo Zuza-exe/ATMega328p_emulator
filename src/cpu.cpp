@@ -1,6 +1,7 @@
 #include "../include/cpu.h"
 #include "../include/memory.h"
 #include "../include/io_regs.h"
+#include "../include/debug.h"
 
 #include <cstring>
 #include<iostream>
@@ -19,6 +20,9 @@ void CPU::step()
     pc++;
 
     decode_and_execute(opcode);
+
+    DBG(cout<<"\n"<<hex<<opcode<<dec<<endl;);
+    DBG(print_status();)
 }
 
 void CPU::print_status()
@@ -40,7 +44,7 @@ void CPU::print_status()
               << "C=" << get_flag(C)
               << "]" << std::endl;
     cout<<std::dec<<"PC: 0x"<<std::hex<<+pc<<endl;
-    cout<<std::dec<<"SP: 0x"<<std::hex<<+sp<<std::dec<<endl;
+    cout<<std::dec<<"SP: 0x"<<std::hex<<+sp<<std::dec<<endl<<endl;;
 }
 
 void CPU::set_flag(Flag f, bool v)
@@ -66,6 +70,49 @@ void CPU::decode_and_execute(uint16_t opcode)
 {
     //decoding instruction
     //they're sorted alphabetically
+
+    //============TODO:================
+    //SUB / SBC (symetria do ADD / ADC)
+    //CP / CPC (porównania)
+    //BRxx (logika flag → skoki)
+
+    //adc - 0001 11rd dddd rrrr - Rd <- Rd + Rr + C
+    if((opcode&0xFC00) == 0x1C00)
+    {
+        uint8_t r_id = ((opcode>>5)&0x0010) | (opcode&0x000F);
+        uint8_t d_id = ((opcode>>4) & 0x001F);
+
+        uint16_t sum = r[r_id] + r[d_id] + (uint16_t)get_flag(C);
+        uint8_t result = sum & 0x00FF;
+
+        //SETTING FLAGS
+
+        //Carry
+        set_flag(C, sum > 0x00FF);
+
+        //Zero
+        set_flag(Z, result == 0); //found information that it should be set_flag(Z, (result == 0) && get_flag(Z)); but I don't trust it
+
+        //Negative
+        set_flag(N, (result & 0x80) != 0);
+
+        //Overflow
+        set_flag(V, ((r[d_id] & 0x80) == (r[r_id] & 0x80)) && ((r[d_id] & 0x80) != (result & 0x80)));
+        //set_flag(V, (~(r[d_id] ^ r[r_id]) & (r[d_id] ^ result) & 0x80));
+
+        //Sign
+        set_flag(S, get_flag(N) ^ get_flag(V));
+
+        //Half-Carry
+        set_flag(H,((r[d_id] & 0x0F) + (r[r_id] & 0x0F) + (uint8_t)get_flag(C)) > 0x0F);
+        //set_flag(H,((r[d_id] ^ r[r_id] ^ result) & 0x10));
+
+        r[d_id] = result;
+
+        //print_status();
+
+        return;
+    }
 
     //add - 0000 11rd dddd rrrr - Rd <- Rd + Rr
     if((opcode&0xFC00) == 0x0C00)
@@ -100,11 +147,12 @@ void CPU::decode_and_execute(uint16_t opcode)
 
         r[d_id] = result;
 
-        print_status();
+        //print_status();
 
         return;
     }
     
+
 
     //ldi - 1110 kkkk(old bits) rrrr(registers 16-31) kkkk(young bits)
     if((opcode&0xF000) == 0xE000)
