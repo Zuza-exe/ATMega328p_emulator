@@ -19,7 +19,7 @@ int main()
 
     mem.load_bin_to_flash(bin_filename);
 
-    mem.print_flash();
+    DBG(mem.print_flash();)
 
     for(int i = 0; i < 10; i++)
     {

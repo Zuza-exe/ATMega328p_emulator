@@ -21,7 +21,7 @@ void CPU::step()
 
     decode_and_execute(opcode);
 
-    DBG(cout<<"\n"<<hex<<opcode<<dec<<endl;);
+    DBG(cout<<"\n"<<hex<<opcode<<dec<<endl;)
     DBG(print_status();)
 }
 
@@ -72,9 +72,9 @@ void CPU::decode_and_execute(uint16_t opcode)
     //they're sorted alphabetically
 
     //============TODO:================
-    //SUB / SBC (symetria do ADD / ADC)
-    //CP / CPC (porównania)
     //BRxx (logika flag → skoki)
+    //rjmp
+    //stos
 
     //adc - 0001 11rd dddd rrrr - Rd <- Rd + Rr + C
     if((opcode&0xFC00) == 0x1C00)
@@ -147,12 +147,75 @@ void CPU::decode_and_execute(uint16_t opcode)
 
         r[d_id] = result;
 
-        //print_status();
-
         return;
     }
     
+    //cp - 0001 01rd dddd rrrr - Rd - Rr
+    if((opcode&0xFC00) == 0x1400)
+    {
+        uint8_t r_id = ((opcode>>5)&0x0010) | (opcode&0x000F);
+        uint8_t d_id = ((opcode>>4) & 0x001F);
 
+        uint8_t Rd = r[d_id];
+        uint8_t Rr = r[r_id];
+        uint8_t result = Rd - Rr;
+
+        //SETTING FLAGS
+
+        //Carry
+        set_flag(C, Rd < Rr);
+
+        //Zero
+        set_flag(Z, result == 0);
+
+        //Negative
+        set_flag(N, result & 0x80);
+
+        //Overflow
+        set_flag(V, ((Rd & 0x80) != (Rr & 0x80)) && ((Rd & 0x80) != (result & 0x80)));   //Rr and Rd have different signs and result has different sign from Rd
+
+        //Sign
+        set_flag(S, get_flag(N) ^ get_flag(V));
+
+        //Half-carry
+        set_flag(H, (Rd&0x0F) < (Rr&0x0F));
+        
+        return;
+    }
+
+    //cpc - 0000 01rd dddd rrrr - Rd - Rr - C
+    if((opcode&0xFC00) == 0x0400)
+    {
+        uint8_t r_id = ((opcode>>5)&0x0010) | (opcode&0x000F);
+        uint8_t d_id = ((opcode>>4) & 0x001F);
+
+        uint8_t carry_before = get_flag(C);
+        uint8_t Rd = r[d_id];
+        uint8_t Rr = r[r_id];
+        uint8_t result = Rd - Rr - carry_before;
+
+        //SETTING FLAGS
+
+        //Carry
+        set_flag(C, Rd < (Rr + carry_before));
+
+        //Zero
+        set_flag(Z, (result == 0) && get_flag(Z));
+
+        //Negative
+        set_flag(N, result & 0x80);
+
+        //Overflow
+        set_flag(V, ((Rd & 0x80) != (Rr & 0x80)) && ((Rd & 0x80) != (result & 0x80)));   //Rr and Rd have different signs and result has different sign from Rd
+
+        //Sign
+        set_flag(S, get_flag(N) ^ get_flag(V));
+
+        //Half-carry
+        set_flag(H, (Rd&0x0F) < ((Rr + carry_before)&0x0F));
+        
+        return;
+    }
 
     //ldi - 1110 kkkk(old bits) rrrr(registers 16-31) kkkk(young bits)
     if((opcode&0xF000) == 0xE000)
@@ -175,6 +238,79 @@ void CPU::decode_and_execute(uint16_t opcode)
     //nop - 0000 0000 0000 0000
     if((opcode&0xFFFF) == 0x0000)
     {
+        return;
+    }
+
+    //sbc - 0000 10rd dddd rrrr - Rd <- Rd - Rr - C
+    if((opcode&0xFC00) == 0x0800)
+    {
+        uint8_t r_id = ((opcode>>5)&0x0010) | (opcode&0x000F);
+        uint8_t d_id = ((opcode>>4) & 0x001F);
+
+        uint8_t Rd = r[d_id];
+        uint8_t Rr = r[r_id];
+
+        uint8_t carry_before = get_flag(C);
+        uint8_t result = Rd - Rr - carry_before;
+        
+
+        //SETTING FLAGS
+
+        //Carry
+        set_flag(C, Rd < (Rr + carry_before));
+
+        //Zero
+        set_flag(Z, (result == 0) && (get_flag(Z)));
+
+        //Negative
+        set_flag(N, result & 0x80);
+
+        //Overflow
+        set_flag(V, (((Rd & 0x80) != (Rr & 0x80)) && (Rd & 0x80) != (result & 0x80)));   //Rr and Rd have different signs and result has different sign from Rd
+
+        //Sign
+        set_flag(S, get_flag(N) ^ get_flag(V));
+
+        //Half-carry
+        set_flag(H, (Rd&0x0F) < ((Rr+carry_before)&0x0F));
+
+        r[d_id] = result;
+
+        return;
+    }
+
+    //sub - 0001 10rd dddd rrrr - Rd <- Rd - Rr
+    if((opcode&0xFC00) == 0x1800)
+    {
+        uint8_t r_id = ((opcode>>5)&0x0010) | (opcode&0x000F);
+        uint8_t d_id = ((opcode>>4) & 0x001F);
+
+        uint8_t Rd = r[d_id];
+        uint8_t Rr = r[r_id];
+        uint8_t result = Rd - Rr;
+
+        //SETTING FLAGS
+
+        //Carry
+        set_flag(C, Rd< Rr);
+
+        //Zero
+        set_flag(Z, result == 0);
+
+        //Negative
+        set_flag(N, result & 0x80);
+
+        //Overflow
+        set_flag(V, ((Rd & 0x80) != (Rr & 0x80)) && ((Rd & 0x80) != (result & 0x80)));   //Rr and Rd have different signs and result has different sign from Rd
+
+        //Sign
+        set_flag(S, get_flag(N) ^ get_flag(V));
+
+        //Half-carry
+        set_flag(H, (Rd&0x0F) < (Rr&0x0F));
+
+        r[d_id] = result;
+
         return;
     }
 
