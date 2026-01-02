@@ -11,7 +11,7 @@ CPU::CPU(Memory& mem) : memory(mem)
     memset(r, 0, sizeof(r));
     sreg = 0;
     pc = 0;
-    sp = 0;
+    sp = 2048;
 }
 
 void CPU::step()
@@ -72,9 +72,10 @@ void CPU::decode_and_execute(uint16_t opcode)
     //they're sorted alphabetically
 
     //============TODO:================
-    //BRxx (logika flag → skoki)
-    //rjmp
     //stos
+    //logical operations
+    //rol, ror...
+    //out, toggle itd
 
     //adc - 0001 11rd dddd rrrr - Rd <- Rd + Rr + C
     if((opcode&0xFC00) == 0x1C00)
@@ -150,6 +151,22 @@ void CPU::decode_and_execute(uint16_t opcode)
         return;
     }
     
+    // brxx instructions - 1111 0tkk kkkk ksss
+    if ((opcode & 0xF000) == 0xF000)
+    {
+        uint8_t s = opcode & 0x7;          // which flag (sss)
+        bool test_zero = opcode & 0x0400;  // t bit: 1 = branch if flag == 0
+
+        int16_t offset = (int16_t)((opcode & 0x03F8) << 6) >> 6;
+
+        bool flag = get_flag((Flag)s);
+
+        if (test_zero ? !flag : flag)
+            pc += offset;
+
+        return;
+    }
+
     //cp - 0001 01rd dddd rrrr - Rd - Rr
     if((opcode&0xFC00) == 0x1400)
     {
@@ -238,6 +255,18 @@ void CPU::decode_and_execute(uint16_t opcode)
     //nop - 0000 0000 0000 0000
     if((opcode&0xFFFF) == 0x0000)
     {
+        return;
+    }
+
+    //rjmp - 1100 kkkk kkkk kkkk - PC <- PC + k + 1
+    if((opcode&0xF000) == 0xC000)
+    {
+        uint16_t k = opcode & 0x0FFF;
+
+        //filling with ones if k<0
+        int16_t offset = (int16_t)(k << 4) >> 4;        //arithmetic shift
+
+        pc += offset;    //not doing +1 because it's already done in step() method
         return;
     }
 

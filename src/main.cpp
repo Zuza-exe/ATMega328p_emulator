@@ -7,10 +7,15 @@
 
 using namespace std;
 
-int main()
+int main(int argc, char** argv)
 {
-    //string bin_filename = "../tests/test_ldi.bin";
-    string bin_filename = "../tests/add_flag_tests.bin";
+    if (argc < 2)
+    {
+        cerr << "Usage: emulator <program.bin>\n";
+        return 1;
+    }
+
+    string bin_filename = argv[1];
 
     Memory mem;
     CPU cpu(mem);
