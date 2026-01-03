@@ -105,3 +105,13 @@ uint16_t Memory::fetch_instruction(uint16_t pc)
 {
     return flash[pc];
 }
+
+uint8_t Memory::get_sram(uint16_t cell)
+{
+    return sram[cell];
+}
+
+void Memory::set_sram(uint16_t cell, uint8_t val)
+{
+    sram[cell] = val;
+}

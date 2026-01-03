@@ -13,6 +13,8 @@ public:
     void write_io(uint8_t addr, uint8_t value);
     //metody odczytu z pamięci
     uint16_t fetch_instruction(uint16_t pc);
+    uint8_t get_sram(uint16_t cell);
+    void set_sram(uint16_t cell, uint8_t val);
 
 private:
     uint16_t flash[16 * 1024];
