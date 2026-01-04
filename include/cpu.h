@@ -32,8 +32,9 @@ private:
     };
 
     void set_flag(Flag f, bool v);
-
     bool get_flag(Flag f) const;
+
+    bool is_two_word(uint16_t opcode);
 
     void decode_and_execute(uint16_t opcode);
 

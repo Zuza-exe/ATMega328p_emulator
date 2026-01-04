@@ -21,13 +21,13 @@ void CPU::step()
 
     decode_and_execute(opcode);
 
-    DBG(cout<<"\n"<<hex<<opcode<<dec<<endl;)
+    DBG(cout<<"\nProcessing instruction: "<<hex<<opcode<<dec<<endl;)
     DBG(print_status();)
 }
 
 void CPU::print_status()
 {
-    cout<<"======Printing CPU status======="<<endl;
+    cout<<"\n======Printing CPU status======"<<endl;
     cout<<"Registers:"<<endl;
     for (int i = 0; i<32; i++)
     {
@@ -64,7 +64,13 @@ bool CPU::get_flag(Flag f) const
     return (sreg >> f) & 1;
 }
 
-    //metody pomocnicze do step() - np. dekodowanie instrukcji, wykonanie instrukcji procesora
+bool CPU::is_two_word(uint16_t opcode)
+{
+    return ((opcode & 0xFE0E) == 0x940C) ||  // JMP
+           ((opcode & 0xFE0E) == 0x940E) ||  // CALL
+           ((opcode & 0xFE0F) == 0x9000) ||  // LDS
+           ((opcode & 0xFE0F) == 0x9200);    // STS
+}
 
 void CPU::decode_and_execute(uint16_t opcode)
 {
@@ -72,7 +78,6 @@ void CPU::decode_and_execute(uint16_t opcode)
     //they're sorted alphabetically
 
     //============TODO:================
-    //jmp
     //rol, ror...
     //out, toggle, sbi itd
 
@@ -190,9 +195,21 @@ void CPU::decode_and_execute(uint16_t opcode)
         uint16_t low = memory.fetch_instruction(pc);    //taking the argument
         pc++;
 
-        uint32_t k = ((opcode&0x01F) << 13) | ((opcode&0x0001) << 16) | low;
+        uint32_t k = ((opcode&0x01F0) << 13) | ((opcode&0x0001) << 16) | low;
         push(pc);
         pc = k;
+        return;
+    }
+
+    //cbi - 1001 1000 AAAA Abbb - 0 <= A <= 31
+    if((opcode&0xFF00) == 0x9800)
+    {
+        uint8_t A = (opcode >> 3) & 0x001F;
+        uint8_t b = opcode & 0x0007;
+
+        memory.set_io_bit(A, b, false);
+
+        return;
     }
 
     //com - 1001 010d dddd 0000
@@ -298,6 +315,29 @@ void CPU::decode_and_execute(uint16_t opcode)
         return;
     }
 
+    //in - 1011 0AAd dddd AAAA
+    if((opcode&0xF800) == 0xB000)
+    {
+        uint8_t d_id = ((opcode>>4) & 0x001F);
+        uint8_t A = ((opcode&0x0600) >> 5) | (opcode & 0x000F);
+        
+        r[d_id] = memory.get_io(A);
+        
+        return;
+    }
+
+    //jmp - 1001 010k kkkk 110k | kkkk kkkk kkkk kkkk
+    if((opcode&0xFE0E) == 0x940C)
+    {
+        uint16_t low = memory.fetch_instruction(pc);    //taking the argument
+        pc++;
+
+        uint32_t k = ((opcode&0x01F0) << 13) | ((opcode&0x0001) << 16) | low;
+
+        pc = k;
+        return;
+    }
+
     //ldi - 1110 kkkk(old bits) rrrr(registers 16-31) kkkk(young bits)
     if((opcode&0xF000) == 0xE000)
     {
@@ -337,6 +377,17 @@ void CPU::decode_and_execute(uint16_t opcode)
         set_flag(S, get_flag(N) ^ get_flag(V));
 
         r[d_id] = result;
+        return;
+    }
+
+    //out - 1011 1AAr rrrr AAAA
+    if((opcode&0xF800) == 0xB800)
+    {
+        uint8_t r_id = ((opcode>>4) & 0x001F);
+        uint8_t A = ((opcode&0x0600) >> 5) | (opcode & 0x000F);
+
+        memory.set_io(A, r[r_id]);
+
         return;
     }
 
@@ -426,6 +477,47 @@ void CPU::decode_and_execute(uint16_t opcode)
         set_flag(H, (Rd&0x0F) < ((Rr+carry_before)&0x0F));
 
         r[d_id] = result;
+
+        return;
+    }
+
+    //sbi - 1001 1010 AAAA Abbb - 0 <= A <= 31
+    if((opcode&0xFF00) == 0x9A00)
+    {
+        uint8_t A = (opcode >> 3) & 0x001F;
+        uint8_t b = opcode & 0x0007;
+
+        memory.set_io_bit(A, b, true);
+
+        return;
+    }
+
+    //sbic - 1001 1001 AAAA Abbb
+    if((opcode&0xFF00) == 0x9900)
+    {
+        uint8_t A = (opcode >> 3) & 0x001F;
+        uint8_t b = opcode & 0x0007;
+
+        if(!memory.get_io_bit(A, b))
+        {
+            uint16_t next_opcode = memory.fetch_instruction(pc);
+            pc += is_two_word(next_opcode) ? 2 : 1;
+        }
+
+        return;
+    }
+
+    //sbis - 1001 1011 AAAA Abbb
+    if((opcode&0xFF00) == 0x9B00)
+    {
+        uint8_t A = (opcode >> 3) & 0x001F;
+        uint8_t b = opcode & 0x0007;
+
+        if(memory.get_io_bit(A, b))
+        {
+            uint16_t next_opcode = memory.fetch_instruction(pc);
+            pc += is_two_word(next_opcode) ? 2 : 1;
+        }
 
         return;
     }

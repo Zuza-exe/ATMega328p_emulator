@@ -81,7 +81,7 @@ bool Memory::load_bin_to_flash(const std::string& path)
 
 
 //zapis 1 do PINx → toggle odpowiedniego bitu w PORTx
-void Memory::write_io(uint8_t addr, uint8_t value)
+void Memory::toggle_io(uint8_t addr, uint8_t value)
 {
     switch (addr) {
     case PINB:
@@ -106,7 +106,7 @@ uint16_t Memory::fetch_instruction(uint16_t pc)
     return flash[pc];
 }
 
-uint8_t Memory::get_sram(uint16_t cell)
+uint8_t Memory::get_sram(uint16_t cell) const
 {
     return sram[cell];
 }
@@ -114,4 +114,31 @@ uint8_t Memory::get_sram(uint16_t cell)
 void Memory::set_sram(uint16_t cell, uint8_t val)
 {
     sram[cell] = val;
+}
+
+uint8_t Memory::get_io(uint8_t cell) const
+{
+    return ioreg[cell];
+}
+
+void Memory::set_io(uint8_t cell, uint8_t val)
+{
+    ioreg[cell] = val;
+}
+
+bool Memory::get_io_bit(uint8_t cell, uint8_t bit) const
+{
+    return (ioreg[cell] >> bit) & 1;
+}
+
+void Memory::set_io_bit(uint8_t cell, uint8_t bit, bool val)
+{
+    if (val)
+    {
+        ioreg[cell] |=  (1 << bit);
+    }
+    else
+    {
+        ioreg[cell] &= ~(1 << bit);
+    }
 }
