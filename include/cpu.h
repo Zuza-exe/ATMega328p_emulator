@@ -10,6 +10,7 @@ public:
     CPU(Memory& mem);
 
     void step();		//pełne wykonanie jednej instrukcji
+    bool get_halted();
     void print_status();
     
 private:
@@ -19,6 +20,9 @@ private:
     uint8_t sreg;	//rejestr statusowy
     uint16_t pc;	//licznik programu
     uint16_t sp;	//shows TOP of the stack, not first free place
+
+    bool cli_seen;   //to find sequence cli, rjmp
+    bool halted;    //if finished working
 
     enum Flag {
         C = 0,
@@ -33,6 +37,9 @@ private:
 
     void set_flag(Flag f, bool v);
     bool get_flag(Flag f) const;
+
+    uint8_t get_data(uint16_t cell);
+    void set_data(uint16_t cell, uint8_t val);
 
     bool is_two_word(uint16_t opcode);
 

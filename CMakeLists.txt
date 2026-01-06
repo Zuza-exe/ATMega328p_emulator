@@ -14,6 +14,7 @@ add_executable(emulator
     src/main.cpp
     src/cpu.cpp
     src/memory.cpp
+    src/debug_utils.cpp
 )
 
 # katalog z nagłówkami

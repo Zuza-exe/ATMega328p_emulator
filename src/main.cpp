@@ -22,14 +22,14 @@ int main(int argc, char** argv)
 
     DBG(cout<<"Debbuging mode on\n"<<endl;)
 
-    mem.load_bin_to_flash(bin_filename);
-
-    DBG(mem.print_flash();)
-
-    for(int i = 0; i < 10; i++)
+    if(mem.load_bin_to_flash(bin_filename))
     {
-        cpu.step();
-    }
+        DBG(mem.print_flash();)
 
+        while(!cpu.get_halted())
+        {
+            cpu.step();
+        }
+    }
     return 0;
 }

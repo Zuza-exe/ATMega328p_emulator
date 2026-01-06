@@ -2,6 +2,7 @@
 #include "../include/memory.h"
 #include "../include/io_regs.h"
 #include "../include/debug.h"
+#include "../include/debug_utils.h"
 
 #include <cstring>
 #include<iostream>
@@ -12,17 +13,29 @@ CPU::CPU(Memory& mem) : memory(mem)
     sreg = 0;
     pc = 0;
     sp = 2048;
+    cli_seen = false;
+    halted = false;
 }
 
 void CPU::step()
 {
+    if(halted)
+    {
+        return;
+    }
+
     uint16_t opcode = memory.fetch_instruction(pc);
     pc++;
 
     decode_and_execute(opcode);
 
-    DBG(cout<<"\nProcessing instruction: "<<hex<<opcode<<dec<<endl;)
+    DBG(cout<<"\nProcessing instruction: 0x"<<hex<<opcode<<dec<<endl;)
     DBG(print_status();)
+}
+
+bool CPU::get_halted()
+{
+    return halted;
 }
 
 void CPU::print_status()
@@ -42,9 +55,9 @@ void CPU::print_status()
               << "N=" << get_flag(N) << " "
               << "Z=" << get_flag(Z) << " "
               << "C=" << get_flag(C)
-              << "]" << std::endl;
-    cout<<std::dec<<"PC: 0x"<<std::hex<<+pc<<endl;
-    cout<<std::dec<<"SP: 0x"<<std::hex<<+sp<<std::dec<<endl<<endl;;
+              << "]" << endl;
+    cout<<dec<<"PC: 0x"<<hex<<+pc<<endl;
+    cout<<dec<<"SP: 0x"<<hex<<+sp<<dec<<endl<<endl;
 }
 
 void CPU::set_flag(Flag f, bool v)
@@ -64,6 +77,30 @@ bool CPU::get_flag(Flag f) const
     return (sreg >> f) & 1;
 }
 
+uint8_t CPU::get_data(uint16_t cell)
+{
+    if (cell < 32)
+    {
+        return r[cell];
+    }
+    else
+    {
+        return memory.get_data(cell);
+    }
+}
+
+void CPU::set_data(uint16_t cell, uint8_t val)
+{
+    if (cell < 32)
+    {
+        r[cell] = val;
+    }
+    else
+    {
+        memory.set_data(cell, val);
+    }
+}
+
 bool CPU::is_two_word(uint16_t opcode)
 {
     return ((opcode & 0xFE0E) == 0x940C) ||  // JMP
@@ -79,7 +116,9 @@ void CPU::decode_and_execute(uint16_t opcode)
 
     //============TODO:================
     //rol, ror...
-    //out, toggle, sbi itd
+
+    bool cli_seen_prev = cli_seen;
+    cli_seen = false;
 
     //adc - 0001 11rd dddd rrrr - Rd <- Rd + Rr + C
     if((opcode&0xFC00) == 0x1C00)
@@ -212,6 +251,14 @@ void CPU::decode_and_execute(uint16_t opcode)
         return;
     }
 
+    //cli - 1001 0100 1111 1000
+    if(opcode == 0x94F8)
+    {
+        set_flag(I, false);
+        cli_seen = true;
+        return;
+    }
+
     //com - 1001 010d dddd 0000
     if((opcode&0xFC00) == 0x9400)
     {
@@ -297,6 +344,49 @@ void CPU::decode_and_execute(uint16_t opcode)
         return;
     }
 
+    //cpse - 0001 00rd dddd rrrr
+    if((opcode&0xFC00) == 0x1000)
+    {
+        uint8_t r_id = ((opcode>>5)&0x0010) | (opcode&0x000F);
+        uint8_t d_id = ((opcode>>4) & 0x001F);
+
+        uint8_t Rd = r[d_id];
+        uint8_t Rr = r[r_id];
+
+        if(Rd == Rr)
+        {
+            uint16_t next_opcode = memory.fetch_instruction(pc);
+            pc += is_two_word(next_opcode) ? 2 : 1;
+        }
+
+        return;
+    }
+
+    //dec - 1001 010d dddd 1010
+    if((opcode&0xFE0F) == 0x940A)
+    {
+        uint8_t d_id = ((opcode>>4) & 0x001F);
+        uint8_t result = r[d_id] - 1;
+
+        //SETTING FLAGS
+
+        //Zero
+        set_flag(Z, result == 0);
+
+        //Negative
+        set_flag(N, result & 0x80);
+
+        //Overflow
+        set_flag(V, (r[d_id] == 0x80));
+
+        //Sign
+        set_flag(S, get_flag(N) ^ get_flag(V));
+
+        r[d_id] = result;
+
+        return;
+    }
+
     //eor - 0010 01rd dddd rrrr
     if((opcode&0xFC00) == 0x2400)
     {
@@ -326,6 +416,31 @@ void CPU::decode_and_execute(uint16_t opcode)
         return;
     }
 
+    //inc - 1001 010d dddd 0011
+    if((opcode&0xFE0F) == 0x9403)
+    {
+        uint8_t d_id = ((opcode>>4) & 0x001F);
+        uint8_t result = r[d_id] + 1;
+
+        //SETTING FLAGS
+
+        //Zero
+        set_flag(Z, result == 0);
+
+        //Negative
+        set_flag(N, result & 0x80);
+
+        //Overflow
+        set_flag(V, (r[d_id] == 0xFF));
+
+        //Sign
+        set_flag(S, get_flag(N) ^ get_flag(V));
+
+        r[d_id] = result;
+
+        return;
+    }
+
     //jmp - 1001 010k kkkk 110k | kkkk kkkk kkkk kkkk
     if((opcode&0xFE0E) == 0x940C)
     {
@@ -344,6 +459,18 @@ void CPU::decode_and_execute(uint16_t opcode)
         uint8_t id = 16 + ((opcode >> 4) & 0x000F);
         uint8_t k = ((opcode >> 4) & 0x00F0) | (opcode & 0x000F);
         r[id] = k;  
+        return;
+    }
+
+    //lds - 1001 000d dddd 0000 | kkkk kkkk kkkk kkkk
+    if((opcode&0xFE0F) == 0x9000)
+    {
+        uint8_t d_id = ((opcode>>4) & 0x001F);
+        uint16_t k = memory.fetch_instruction(pc);    //taking the argument
+        pc++;
+
+        r[d_id] = get_data(k);
+
         return;
     }
 
@@ -415,12 +542,15 @@ void CPU::decode_and_execute(uint16_t opcode)
 
         push(pc);
         pc += offset;
+
+        return;
     }
 
     //ret - 1001 0101 0000 1000
     if((opcode&0xFFFF) == 0x9508)
     {
         pc = pop16();
+        return;
     }
 
     //reti - 1001 0101 0001 1000
@@ -428,7 +558,7 @@ void CPU::decode_and_execute(uint16_t opcode)
     {
         pc = pop16();
         set_flag(I, true);
-
+        return;
     }
 
     //rjmp - 1100 kkkk kkkk kkkk - PC <- PC + k + 1
@@ -438,6 +568,12 @@ void CPU::decode_and_execute(uint16_t opcode)
 
         //filling with ones if k<0
         int16_t offset = (int16_t)(k << 4) >> 4;        //arithmetic shift
+
+        if(cli_seen_prev && offset == -1)
+        {
+            halted = true;
+            return;
+        }
 
         pc += offset;    //not doing +1 because it's already done in step() method
         return;
